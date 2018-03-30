@@ -57,11 +57,12 @@ myState.create = function(){
 							var theTile=new Kiwi.GameObjects.Sprite(this, this.textures["dotSprite"], transformed_x + center_x + 50, transformed_y + center_y + 100);
               //var theTile=new Kiwi.GameObjects.Sprite(this, this.textures["dotSprite"], j * tileSize, i * tileSize );
 							theTile.centerAnchorPoint();
-							theTile.animation.switchTo(randomTile);
+              theTile.animation.switchTo(randomTile);
+              theTile.rotation = Math.PI/4;
 							this.addChild(theTile);
 							dotArray[i][j]=theTile;
               posArray[i][j] = {x:dotArray[i][j].x, y:dotArray[i][j].y};
-              console.log(dotArray[i][j].x, dotArray[i][j].y);
+              //console.log("Position of ("+i.toString()+","+j.toString()+"):", dotArray[i][j].x, dotArray[i][j].y);
 						}
 					}
 					this.game.input.onDown.add(pickDot);
@@ -76,7 +77,16 @@ function pickDot(inputX, inputY){
           // We'll have to look for them by iterating over the whole matrix
           for(i=0;i<fieldSize;i++){
             for(j=0;j<fieldSize;j++){
-              if ((dotArray[i][j].x < startX && startX < dotArray[i][j].x + 64) && (dotArray[i][j].y < startY && startY < dotArray[i][j].y + 64)) {
+              var centerX = dotArray[i][j].x + 32;
+              var centerY = dotArray[i][j].y + 32;
+
+              var transformed_inputY = (inputX - centerX) * 0.707107 + (inputY - centerY) * 0.707107;
+              var transformed_inputX = (inputY - centerY) * 0.707107 - (inputX - centerX) * 0.707107;
+
+              //console.log("Relative mouse coordinates from ("+i.toString()+","+j.toString()+"):", transformed_inputX, transformed_inputY);
+              //console.log("Anchor point of ("+i.toString()+","+j.toString()+"):", centerX, centerY);
+
+              if ((Math.abs(transformed_inputX) <= 32) && (Math.abs(transformed_inputY) <= 32)) {
                 movingRow = i;
                 movingCol = j;
                 originX = dotArray[i][j].x;
@@ -84,9 +94,7 @@ function pickDot(inputX, inputY){
               }
             }
           }
-          console.log("The selected pick location is ", movingRow, movingCol);
-					//movingRow = Math.floor(startY/tileSize);
-					//movingCol = Math.floor(startX/tileSize);
+          //console.log("The selected pick location is ", movingRow, movingCol);
 					// zoom the tile
 					dotArray[movingRow][movingCol].scaleToWidth(tileSize*pickedZoom);
 					dotArray[movingRow][movingCol].scaleToHeight(tileSize*pickedZoom);
@@ -100,18 +108,38 @@ function pickDot(inputX, inputY){
 
 				function releaseDot(){
 					// remove the listener
-					myState.game.input.onUp.remove(releaseDot);
+          myState.game.input.onUp.remove(releaseDot);
+          
+          var inputX = dotArray[movingRow][movingCol].x + 32;
+          var inputY = dotArray[movingRow][movingCol].y + 32;
+
 					// determine landing row and column
           for(i=0;i<fieldSize;i++){
             for(j=0;j<fieldSize;j++){
-              if ((posArray[i][j].x < dotArray[movingRow][movingCol].x && dotArray[movingRow][movingCol].x < posArray[i][j].x + 64) && (posArray[i][j].y < dotArray[movingRow][movingCol].y && dotArray[movingRow][movingCol].y < posArray[i][j].y + 64)) {
+              var centerX = dotArray[i][j].x + 32;
+              var centerY = dotArray[i][j].y + 32;
+
+              var transformed_releaseY = (inputX - centerX) * 0.707107 + (inputY - centerY) * 0.707107;
+              var transformed_releaseX = (inputY - centerY) * 0.707107 - (inputX - centerX) * 0.707107;
+
+              //console.log("Relative mouse coordinates from ("+i.toString()+","+j.toString()+"):", transformed_releaseX, transformed_releaseY);
+              //console.log("Anchor point of ("+i.toString()+","+j.toString()+"):", centerX, centerY);
+
+              if (transformed_releaseX == 0 && transformed_releaseY == 0) {continue;}
+
+              if ((Math.abs(transformed_releaseX) <= 32) && (Math.abs(transformed_releaseY) <= 32)) {
+                console.log("Picked:", i, j);
                 var landingRow = i;
                 var landingCol = j;
                 landingX = posArray[i][j].x;
                 landingY = posArray[i][j].y;
+
+                i = fieldSize;
+                j = fieldSize;
               }
             }
           }
+          console.log("Absolute mouse coordinates are:", inputX, inputY);
           console.log("The selected release location is ", landingRow, landingCol);
 					//var landingRow = Math.floor((dotArray[movingRow][movingCol].y+tileSize/2)/tileSize);
 					//var landingCol = Math.floor((dotArray[movingRow][movingCol].x+tileSize/2)/tileSize);
@@ -131,11 +159,11 @@ function pickDot(inputX, inputY){
               var temp = dotArray[landingRow][landingCol];
               dotArray[landingRow][landingCol] = dotArray[movingRow][movingCol];
               dotArray[movingRow][movingCol] = temp;
-              myState.game.input.onDown.add(pickDot);
             })
           }
 					// we aren't dragging anymore
-					dragging = false;
+          dragging = false;
+          myState.game.input.onDown.add(pickDot);
 				}
 
 myState.update = function(){
