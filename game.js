@@ -1,4 +1,9 @@
-var myGame = new Kiwi.Game();
+//Initialise the Kiwi Game. 
+var gameOptions = {
+	width: 1000,
+	height: 750
+}
+var myGame = new Kiwi.Game('content', 'myGame', null, gameOptions);
 
 var myState = new Kiwi.State( "myState" );
 
@@ -22,13 +27,13 @@ var dotArray = [];				// array with all game tiles
 var posArray = [];
 var dotGroup; 				// group containing all tiles
 var movingDotGroup;               // group containing the moving tile
-
-myGame.states.addState(myState, true);
+var currentPlayer = 1; //State variable, current player
+var availableMov = 3; //State variavle, amount of movements left
 
 myState.preload = function () {
   this.game.stage.setRGBColor(255, 255, 255);
   Kiwi.State.prototype.preload.call(this);
-  this.addSpriteSheet( 'dotSprite', 'dotsSheet.png', 64, 64);
+  this.addSpriteSheet( 'dotSprite', 'dotsSheet_sq.png', 64, 64);
 }
 
 myState.create = function(){
@@ -37,6 +42,11 @@ myState.create = function(){
     //Lets find the center coordinate of the dot matrix
     var center_x = (tileSize * fieldSize) / 2;
     var center_y = (tileSize * fieldSize) / 2;
+
+    this.currPlayer = new Kiwi.GameObjects.Textfield(this, "Jugador "+currentPlayer.toString(), 600, 100, fontsize = 16);
+    this.moves = new Kiwi.GameObjects.Textfield(this, "Te quedan "+availableMov.toString()+" movimientos", 600, 150, fontsize = 16);
+    this.addChild(this.currPlayer);
+    this.addChild(this.moves);
 
     for(i=0;i<fieldSize;i++){
 						dotArray[i] = [];
@@ -94,7 +104,7 @@ function pickDot(inputX, inputY){
               }
             }
           }
-          //console.log("The selected pick location is ", movingRow, movingCol);
+          console.log("The selected pick location is ", movingRow, movingCol);
 					// zoom the tile
 					dotArray[movingRow][movingCol].scaleToWidth(tileSize*pickedZoom);
 					dotArray[movingRow][movingCol].scaleToHeight(tileSize*pickedZoom);
@@ -124,28 +134,47 @@ function pickDot(inputX, inputY){
 
               //console.log("Relative mouse coordinates from ("+i.toString()+","+j.toString()+"):", transformed_releaseX, transformed_releaseY);
               //console.log("Anchor point of ("+i.toString()+","+j.toString()+"):", centerX, centerY);
-
+              
+              //HACK: Por alguna razón, la posición de inicio queda como (0,0). Debemos saltarnos eso.
               if (transformed_releaseX == 0 && transformed_releaseY == 0) {continue;}
 
               if ((Math.abs(transformed_releaseX) <= 32) && (Math.abs(transformed_releaseY) <= 32)) {
-                console.log("Picked:", i, j);
+                //console.log("Picked:", i, j);
                 var landingRow = i;
                 var landingCol = j;
                 landingX = posArray[i][j].x;
                 landingY = posArray[i][j].y;
-
+                
+                //HACK: Apenas encontramos una posición de llegada, nos vamos.
                 i = fieldSize;
                 j = fieldSize;
               }
             }
           }
-          console.log("Absolute mouse coordinates are:", inputX, inputY);
+          //console.log("Absolute mouse coordinates are:", inputX, inputY);
           console.log("The selected release location is ", landingRow, landingCol);
 					//var landingRow = Math.floor((dotArray[movingRow][movingCol].y+tileSize/2)/tileSize);
 					//var landingCol = Math.floor((dotArray[movingRow][movingCol].x+tileSize/2)/tileSize);
 					// reset the moving tile to its original size
 					dotArray[movingRow][movingCol].scaleToWidth(tileSize);
-					dotArray[movingRow][movingCol].scaleToWidth(tileSize);
+          dotArray[movingRow][movingCol].scaleToWidth(tileSize);
+          
+          //First, we need to check if we have available movements
+          var total_mov = Math.abs(movingRow - landingRow) + Math.abs(movingCol - landingCol);
+          console.log("Play requires "+total_mov.toString()+" moves.");
+          //Are they enough?
+          if (total_mov <= availableMov) {
+            //Discount from available moves
+            availableMov = availableMov - total_mov;
+            myState.moves.text = "Te quedan "+availableMov.toString()+" movimientos";
+          } else {
+            //If we dont have available moves, we dont move the piece
+            landingRow = movingRow;
+            landingCol = movingCol;
+
+            landingX = originX;
+            landingY = originY;
+          }
 					// swap tiles, both visually and in tileArray array...
 					dotArray[movingRow][movingCol].x=landingX;
 					dotArray[movingRow][movingCol].y=landingY;
@@ -164,6 +193,15 @@ function pickDot(inputX, inputY){
 					// we aren't dragging anymore
           dragging = false;
           myState.game.input.onDown.add(pickDot);
+          if (currentPlayer == 1 && availableMov == 0) {
+            currentPlayer = 2;
+            availableMov = Math.floor(Math.random() * 3) + 1;
+          } else if (currentPlayer == 2 && availableMov == 0) {
+            currentPlayer = 1;
+            availableMov = Math.floor(Math.random() * 3) + 1;
+          }
+          myState.currPlayer.text = "Jugador "+currentPlayer.toString();
+          myState.moves.text = "Te quedan "+availableMov.toString()+" movimientos";
 				}
 
 myState.update = function(){
@@ -176,4 +214,6 @@ myState.update = function(){
             dotArray[movingRow][movingCol].x=originX+distX;
             dotArray[movingRow][movingCol].y=originY+distY;
 					}
-				}
+        }
+        
+myGame.states.addState(myState, true);
