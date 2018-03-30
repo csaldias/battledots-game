@@ -29,6 +29,7 @@ var dotGroup; 				// group containing all tiles
 var movingDotGroup;               // group containing the moving tile
 var currentPlayer = 1; //State variable, current player
 var availableMov = 3; //State variavle, amount of movements left
+var winner = false;  //Has a winner been found?
 
 myState.preload = function () {
   this.game.stage.setRGBColor(255, 255, 255);
@@ -45,8 +46,10 @@ myState.create = function(){
 
   this.currPlayer = new Kiwi.GameObjects.Textfield(this, "Jugador "+currentPlayer.toString(), 600, 100, fontsize = 16);
   this.moves = new Kiwi.GameObjects.Textfield(this, "Te quedan "+availableMov.toString()+" movimientos", 600, 150, fontsize = 16);
+  this.winner = new Kiwi.GameObjects.Textfield(this, "", 600, 500, fontsize = 16);
   this.addChild(this.currPlayer);
   this.addChild(this.moves);
+  this.addChild(this.winner);
 
   for(i=0;i<fieldSize;i++){
 		dotArray[i] = [];
@@ -104,15 +107,37 @@ function pickDot(inputX, inputY){
   }
   
   console.log("The selected pick location is ", movingRow, movingCol);
-	// zoom the tile
-	dotArray[movingRow][movingCol].scaleToWidth(tileSize*pickedZoom);
-	dotArray[movingRow][movingCol].scaleToHeight(tileSize*pickedZoom);
-  // moving the tile in front of the stage
+  //Are we allowed to pick this tile?
+  if ((dotArray[movingRow][movingCol].animation.currentCell == currentPlayer) && !(winner)) {
+    // zoom the tile
+	  dotArray[movingRow][movingCol].scaleToWidth(tileSize*pickedZoom);
+	  dotArray[movingRow][movingCol].scaleToHeight(tileSize*pickedZoom);
+    // moving the tile in front of the stage
+	  myState.swapChildren(dotArray[movingRow][movingCol],myState.getChildAt(myState.numChildren()-1));
+	  myState.game.input.onDown.remove(pickDot);
+	  myState.game.input.onUp.add(releaseDot);
+    dragging=true;
+  } else {
+    console.log("Cannot move selected piece, not from Player "+currentPlayer.toString());
+  }
+}
 
-	myState.swapChildren(dotArray[movingRow][movingCol],myState.getChildAt(myState.numChildren()-1));
-	myState.game.input.onDown.remove(pickDot);
-	myState.game.input.onUp.add(releaseDot);
-	dragging=true;
+function swapTiles(){
+  // swap tiles, both visually and in tileArray array...
+	dotArray[movingRow][movingCol].x=landingX;
+	dotArray[movingRow][movingCol].y=landingY;
+	if(movingRow!=landingRow || movingCol!=landingCol){
+    // but only if you actually moved a tile
+    myState.swapChildren(dotArray[landingRow][landingCol],myState.getChildAt(myState.numChildren()-1));
+		var moveTween = myState.game.tweens.create(dotArray[landingRow][landingCol]);
+    moveTween.to({x: originX, y: originY}, 400, Kiwi.Animations.Tweens.Easing.Exponential.Out);
+    moveTween.start();
+    moveTween.onComplete(function(){
+      var temp = dotArray[landingRow][landingCol];
+      dotArray[landingRow][landingCol] = dotArray[movingRow][movingCol];
+      dotArray[movingRow][movingCol] = temp;
+    })
+  }
 }
 
 function releaseDot(){
@@ -139,8 +164,8 @@ function releaseDot(){
 
       if ((Math.abs(transformed_releaseX) <= 32) && (Math.abs(transformed_releaseY) <= 32)) {
         //console.log("Picked:", i, j);
-        var landingRow = i;
-        var landingCol = j;
+        landingRow = i;
+        landingCol = j;
         landingX = posArray[i][j].x;
         landingY = posArray[i][j].y;
 
@@ -150,6 +175,7 @@ function releaseDot(){
       }
     }
   }
+
   //console.log("Absolute mouse coordinates are:", inputX, inputY);
   console.log("The selected release location is ", landingRow, landingCol);
 	//var landingRow = Math.floor((dotArray[movingRow][movingCol].y+tileSize/2)/tileSize);
@@ -174,21 +200,9 @@ function releaseDot(){
     landingX = originX;
     landingY = originY;
   }
-	// swap tiles, both visually and in tileArray array...
-	dotArray[movingRow][movingCol].x=landingX;
-	dotArray[movingRow][movingCol].y=landingY;
-	if(movingRow!=landingRow || movingCol!=landingCol){
-    // but only if you actually moved a tile
-    myState.swapChildren(dotArray[landingRow][landingCol],myState.getChildAt(myState.numChildren()-1));
-		var moveTween = myState.game.tweens.create(dotArray[landingRow][landingCol]);
-    moveTween.to({x: originX, y: originY}, 800, Kiwi.Animations.Tweens.Easing.Exponential.Out);
-    moveTween.start();
-    moveTween.onComplete(function(){
-      var temp = dotArray[landingRow][landingCol];
-      dotArray[landingRow][landingCol] = dotArray[movingRow][movingCol];
-      dotArray[movingRow][movingCol] = temp;
-    })
-  }
+
+  swapTiles();
+  
 	// we aren't dragging anymore
   dragging = false;
   myState.game.input.onDown.add(pickDot);
@@ -202,6 +216,16 @@ function releaseDot(){
   }
   myState.currPlayer.text = "Jugador "+currentPlayer.toString();
   myState.moves.text = "Te quedan "+availableMov.toString()+" movimientos";
+
+  //Check for winning condition
+  if (dotArray[0][0].animation.currentCell == 1) {
+    myState.winner.text = "Jugador 1 gana!";
+    winner = true;
+  }
+  if (dotArray[6][6].animation.currentCell == 2) {
+    myState.winner.text = "Jugador 2 gana!";
+    winner = true;
+  }
 }
 
 myState.update = function(){
