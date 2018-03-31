@@ -30,11 +30,13 @@ var movingDotGroup;               // group containing the moving tile
 var currentPlayer = 1; //State variable, current player
 var availableMov = Math.floor(Math.random() * 3) + 1; //State variavle, amount of movements left
 var winner = false;  //Has a winner been found?
+var tiempo_p1 = 480;
+var tiempo_p2 = 480;
 
 myState.preload = function () {
   this.game.stage.setRGBColor(255, 255, 255);
   Kiwi.State.prototype.preload.call(this);
-  this.addSpriteSheet( 'dotSprite', 'dotsSheet_sq.png', 64, 64);
+  this.addSpriteSheet( 'dotSprite', 'dotsSheet.png', 64, 64);
 }
 
 myState.create = function(){
@@ -45,7 +47,7 @@ myState.create = function(){
   var center_y = (tileSize * fieldSize) / 2;
 
   this.currPlayer = new Kiwi.GameObjects.Textfield(this, "Jugador "+currentPlayer.toString(), 600, 100, fontsize = 16);
-  this.moves = new Kiwi.GameObjects.Textfield(this, "Te quedan "+availableMov.toString()+" movimientos", 600, 150, fontsize = 16);
+  this.moves = new Kiwi.GameObjects.Textfield(this, "Tienes "+availableMov.toString()+" movimientos", 600, 150, fontsize = 16);
   this.winner = new Kiwi.GameObjects.Textfield(this, "", 600, 500, fontsize = 16);
   this.addChild(this.currPlayer);
   this.addChild(this.moves);
@@ -78,8 +80,63 @@ myState.create = function(){
       posArray[i][j] = {x:dotArray[i][j].x, y:dotArray[i][j].y};
       //console.log("Position of ("+i.toString()+","+j.toString()+"):", dotArray[i][j].x, dotArray[i][j].y);
 		}
-	}
+  }
+  this.timer_text_p1 = new Kiwi.GameObjects.Textfield(this, "Tiempo J1: 8:00", 600, 550, "#000", 32, 'normal' );
+  this.timer_text_p2 = new Kiwi.GameObjects.Textfield(this, "Tiempo J2: 8:00", 600, 600, "#000", 32, 'normal' );
+  
+  this.timer_p1 = this.game.time.clock.createTimer('time_p1', 1, 480, false);
+  this.timer_p1.createTimerEvent(Kiwi.Time.TimerEvent.TIMER_STOP, this.timeout_p1, this);
+  this.timer_p1.createTimerEvent(Kiwi.Time.TimerEvent.TIMER_COUNT, this.update_p1, this);
+  this.timer_p1.start();
+
+  this.timer_p2 = this.game.time.clock.createTimer('time_p2', 1, 480, false);
+  this.timer_p2.createTimerEvent(Kiwi.Time.TimerEvent.TIMER_STOP, this.timeout_p2, this);
+  this.timer_p2.createTimerEvent(Kiwi.Time.TimerEvent.TIMER_COUNT, this.update_p2, this);
+  this.timer_p2.start();
+  this.timer_p2.pause();
+
+  this.addChild(this.timer_text_p1);
+  this.addChild(this.timer_text_p2);
+  
 	this.game.input.onDown.add(pickDot);
+}
+
+myState.timeout_p1 = function() {
+  this.winner.text =  "Jugador 2 Gana!";
+  winner = true;
+}
+
+myState.timeout_p2 = function() {
+  this.winner.text =  "Jugador 1 Gana!";
+  winner = true;
+}
+
+myState.update_p1 = function() {
+  tiempo_p1 -= 1;
+  var min = Math.floor(tiempo_p1/60);
+  var sec = tiempo_p1 % 60;
+  if (sec < 10) sec = "0" + sec;
+  this.timer_text_p1.text =  "Tiempo J1: " + min + ":" + sec;
+  if (tiempo_p1 <= 0) {
+    this.winner.text = 'Jugador 2 Gana!';
+    winner = true;
+    myState.timer_p1.pause();
+    myState.timer_p2.pause();
+  }
+}
+
+myState.update_p2 = function() {
+  tiempo_p2 -= 1;
+  var min = Math.floor(tiempo_p2/60);
+  var sec = tiempo_p2 % 60;
+  if (sec < 10) sec = "0" + sec;
+  this.timer_text_p2.text =  "Tiempo J2: " + min + ":" + sec;
+  if (tiempo_p2 <= 0) {
+    this.winner.text = 'Jugador 1 Gana!';
+    winner = true;
+    myState.timer_p1.pause();
+    myState.timer_p2.pause();
+  }
 }
 
 function pickDot(inputX, inputY){
@@ -179,11 +236,17 @@ function swapTiles(){
       console.log("Checking for any winners...")
       if (dotArray[0][0].animation.currentCell == 1) {
         myState.winner.text = "Jugador 1 gana!";
+        myState.winner.color = "#ff0000";
         winner = true;
+        myState.timer_p1.pause();
+        myState.timer_p2.pause();
         console.log("Player 1 wins!");
       } else if (dotArray[6][6].animation.currentCell == 2) {
         myState.winner.text = "Jugador 2 gana!";
+        myState.winner.color = "#001d7e";
         winner = true;
+        myState.timer_p1.pause();
+        myState.timer_p2.pause();
         console.log("Player 2 wins!");
       } else {
         console.log("No winners found.")
@@ -243,7 +306,7 @@ function releaseDot(){
   if (total_mov <= availableMov) {
     //Discount from available moves
     availableMov = availableMov - total_mov;
-    myState.moves.text = "Te quedan "+availableMov.toString()+" movimientos";
+    myState.moves.text = "Tienes "+availableMov.toString()+" movimientos";
   } else {
     //If we dont have available moves, we dont move the piece
     landingRow = movingRow;
@@ -260,15 +323,19 @@ function releaseDot(){
   
   if (currentPlayer == 1 && availableMov == 0) {
     currentPlayer = 2;
+    myState.timer_p1.pause();
+    myState.timer_p2.resume();
     availableMov = Math.floor(Math.random() * 3) + 1;
     myState.currPlayer.color = "#001d7e";
   } else if (currentPlayer == 2 && availableMov == 0) {
     currentPlayer = 1;
+    myState.timer_p2.pause();
+    myState.timer_p1.resume();
     availableMov = Math.floor(Math.random() * 3) + 1;
     myState.currPlayer.color = "#ff0000";
   }
   myState.currPlayer.text = "Jugador "+currentPlayer.toString();
-  myState.moves.text = "Te quedan "+availableMov.toString()+" movimientos";
+  myState.moves.text = "Tienes "+availableMov.toString()+" movimientos";
 
   myState.game.input.onDown.add(pickDot);
 }
