@@ -28,7 +28,7 @@ var posArray = [];
 var dotGroup; 				// group containing all tiles
 var movingDotGroup;               // group containing the moving tile
 var currentPlayer = 1; //State variable, current player
-var availableMov = 3; //State variavle, amount of movements left
+var availableMov = Math.floor(Math.random() * 3) + 1; //State variavle, amount of movements left
 var winner = false;  //Has a winner been found?
 
 myState.preload = function () {
@@ -50,6 +50,8 @@ myState.create = function(){
   this.addChild(this.currPlayer);
   this.addChild(this.moves);
   this.addChild(this.winner);
+
+  this.currPlayer.color = "#ff0000";
 
   for(i=0;i<fieldSize;i++){
 		dotArray[i] = [];
@@ -136,6 +138,56 @@ function swapTiles(){
       var temp = dotArray[landingRow][landingCol];
       dotArray[landingRow][landingCol] = dotArray[movingRow][movingCol];
       dotArray[movingRow][movingCol] = temp;
+
+      //Is the destination dot a player dot?
+      if (dotArray[movingRow][movingCol].animation.currentCell != 0) {
+        console.log("The destination dot was a player!");
+        //movingRow = landingRow;
+        //movingCol = landingCol;
+        //originX = dotArray[landingRow][landingCol].x;
+        //originY = dotArray[landingRow][landingCol].y;
+        if (dotArray[movingRow][movingCol].animation.currentCell == 2) {
+          console.log("Moving Player 2 ("+movingRow.toString()+","+movingCol.toString()+") back to origin...");
+          //The destination dot was player 2
+          landingRow = 0;
+          landingCol = 0;
+          landingX = posArray[0][0].x;
+          landingY = posArray[0][0].y;
+        } else if (dotArray[movingRow][movingCol].animation.currentCell == 1) {
+          //The destination dot was player 1
+          console.log("Moving Player 2 ("+movingRow.toString()+","+movingCol.toString()+") back to origin...");
+          landingRow = 6;
+          landingCol = 6;
+          landingX = posArray[6][6].x;
+          landingY = posArray[6][6].y;
+        }
+        
+        dotArray[movingRow][movingCol].x=landingX;
+        dotArray[movingRow][movingCol].y=landingY;
+        myState.swapChildren(dotArray[landingRow][landingCol],myState.getChildAt(myState.numChildren()-1));
+        var moveTween = myState.game.tweens.create(dotArray[landingRow][landingCol]);
+        moveTween.to({x: originX, y: originY}, 400, Kiwi.Animations.Tweens.Easing.Exponential.Out);
+        moveTween.start();
+        moveTween.onComplete(function(){
+          var temp = dotArray[landingRow][landingCol];
+          dotArray[landingRow][landingCol] = dotArray[movingRow][movingCol];
+          dotArray[movingRow][movingCol] = temp;
+        })
+      }
+
+      //Check for winning condition
+      console.log("Checking for any winners...")
+      if (dotArray[0][0].animation.currentCell == 1) {
+        myState.winner.text = "Jugador 1 gana!";
+        winner = true;
+        console.log("Player 1 wins!");
+      } else if (dotArray[6][6].animation.currentCell == 2) {
+        myState.winner.text = "Jugador 2 gana!";
+        winner = true;
+        console.log("Player 2 wins!");
+      } else {
+        console.log("No winners found.")
+      }
     })
   }
 }
@@ -201,31 +253,24 @@ function releaseDot(){
     landingY = originY;
   }
 
+  //TODO: If the destination dot is the other player's dot, we sent his dot to the start.
   swapTiles();
-  
 	// we aren't dragging anymore
   dragging = false;
-  myState.game.input.onDown.add(pickDot);
   
   if (currentPlayer == 1 && availableMov == 0) {
     currentPlayer = 2;
     availableMov = Math.floor(Math.random() * 3) + 1;
+    myState.currPlayer.color = "#001d7e";
   } else if (currentPlayer == 2 && availableMov == 0) {
     currentPlayer = 1;
     availableMov = Math.floor(Math.random() * 3) + 1;
+    myState.currPlayer.color = "#ff0000";
   }
   myState.currPlayer.text = "Jugador "+currentPlayer.toString();
   myState.moves.text = "Te quedan "+availableMov.toString()+" movimientos";
 
-  //Check for winning condition
-  if (dotArray[0][0].animation.currentCell == 1) {
-    myState.winner.text = "Jugador 1 gana!";
-    winner = true;
-  }
-  if (dotArray[6][6].animation.currentCell == 2) {
-    myState.winner.text = "Jugador 2 gana!";
-    winner = true;
-  }
+  myState.game.input.onDown.add(pickDot);
 }
 
 myState.update = function(){
