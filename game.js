@@ -212,7 +212,7 @@ function swapTiles(){
           landingY = posArray[0][0].y;
         } else if (dotArray[movingRow][movingCol].animation.currentCell == 1) {
           //The destination dot was player 1
-          console.log("Moving Player 2 ("+movingRow.toString()+","+movingCol.toString()+") back to origin...");
+          console.log("Moving Player 1 ("+movingRow.toString()+","+movingCol.toString()+") back to origin...");
           landingRow = 6;
           landingCol = 6;
           landingX = posArray[6][6].x;
